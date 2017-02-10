@@ -1,0 +1,160 @@
+---
+title: "Predicting Employee Turnover using Logistic Regression"
+---
+
+***
+
+### Load required packages
+
+```{r, warning=FALSE, message=FALSE}
+# Required Packages
+library(ROCR)
+library(caret)
+```
+
+### Data
+
+This data has been sourced from IBM Watson Analytic. THe predictive model that we will build will look at the probability of an employee learning the organisation.
+'https://community.watsonanalytics.com/hr-employee-attrition/'
+
+```{r}
+data <- read.table("http://www.infoexcite.com/data/employee_attrition_example.csv", sep=",", header=T)
+data$outcome <- data$attrition
+data$attrition <- NULL
+```
+
+### Cleaning the data
+
+```{r}
+drop <- c("education", "environment_satisfaction", "job_involvement","job_satisfaction", "performance_rating","relationship_satisfaction")
+data_model <- data[,!(names(data) %in% drop)]
+
+drop2 <- c("business_travel", "department", "education_field", "gender", "job_role", "marital_status", "over_18", "over_time")
+data_model <- data_model[,!(names(data_model) %in% drop2)]
+```
+
+### Create Training Sets
+
+```{r}
+data2 <- data
+data2$age[data2$years_at_company>6] <- NA
+data2$gender[data2$years_at_company>6] <- NA
+data2$hourlyrate[data2$years_at_company>6] <- NA
+library(Amelia)
+missmap(data2, main = "Missing values vs observed")
+
+
+
+
+smp_size <- floor(0.75 * nrow(data_model))
+set.seed(123)
+train_ind <- sample(seq_len(nrow(data_model)), size = smp_size)
+train <- data_model[train_ind, ]
+test <- data_model[-train_ind, ]
+```
+
+### Model Build
+
+```{r}
+model <- glm(outcome ~., family=binomial(link='logit'),data=train)
+summary(model)
+```
+
+### Model Reduce
+
+```{r}
+model_reduced <- step(model, trace=0)
+summary(model_reduced)
+```
+
+### Model Prediction
+
+```{r}
+test$predict <- predict(model_reduced, newdata=test, type="response")
+summary(test$predict)
+```
+
+
+### Model Effectiveness, Chart 1 - ROC CUrve
+
+```{r}
+# First Step
+pred <- prediction(test$predict, test$outcome)
+# ROC CUrve Chart 1
+perf = performance(pred, measure = "tpr", x.measure = "fpr")
+plot(perf, colorize=T,lwd=3)
+abline(a=0, b= 1)
+
+```
+
+### Optimal cutoff
+
+```{r}
+
+# Model Accuracy - Cutoff
+acc.perf = performance(pred, measure = "acc")
+plot(acc.perf)
+
+# Visual Cutoff
+pred <- prediction(test$predict, test$outcome)
+perf <- performance(pred,"pcmiss","lift")
+plot(perf, colorize=T, print.cutoffs.at=seq(0,1,by=0.1), text.adj=c(1.2,1.2), avg="threshold", lwd=3)
+
+
+
+# ind = which.max(slot(acc.perf, "y.values")[[1]] )
+# acc = slot(acc.perf, "y.values")[[1]][ind]
+# cutoff = slot(acc.perf, "x.values")[[1]][ind]
+# print(c(accuracy= acc, cutoff = cutoff))
+```
+
+
+### Matrix and Plot with cutoff
+
+```{r}
+# Test will full
+pred_cutoff <- factor(ifelse(test$predict > .1, "Yes", "No"))
+confusionMatrix(pred_cutoff, test$outcome)
+
+
+# Cutoff Test
+pred_cutoff <- factor(ifelse(test$predict > 0.26, "Yes", "No"))
+confusionMatrix(pred_cutoff, test$outcome)
+
+
+
+
+
+# Plot results
+pROC = function(pred, fpr.stop){
+    perf <- performance(pred,"tpr","fpr")
+    for (iperf in seq_along(perf@x.values)){
+        ind = which(perf@x.values[[iperf]] <= fpr.stop)
+        perf@y.values[[iperf]] = perf@y.values[[iperf]][ind]
+        perf@x.values[[iperf]] = perf@x.values[[iperf]][ind]
+    }
+    return(perf)
+}
+
+proc.perf = pROC(pred, fpr.stop=0.4)
+plot(proc.perf, colorize=T,lwd=3, main="Roc Curve - True Positive Rate")
+abline(a=0, b= 1)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

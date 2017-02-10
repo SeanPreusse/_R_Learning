@@ -1,0 +1,26 @@
+
+library(ggplot2)
+library(gridExtra)
+
+
+
+#histogram with density line overlaid
+p2 <- ggplot(data2, aes(x=emp_age)) + 
+  geom_histogram(aes(y = ..density..), color="black", fill='Blue', alpha = 0.2) +
+  geom_density(color="Black") +
+  theme_bw() +
+  ggtitle("\nAge histogram with density\n") +
+  theme(plot.title = element_text(lineheight=.8, face="bold"))
+  
+
+
+
+p1 <- ggplot(data2, aes(x=emp_fte_salary)) + 
+  geom_histogram(aes(y = ..density..), color="black", fill='Red', alpha = 0.2) +
+  geom_density(color="Black") +
+  theme_bw() +
+  ggtitle("\nSalary histogram with density\n") +
+  theme(plot.title = element_text(lineheight=.8, face="bold"))
+
+
+grid.arrange(p2, p1, nrow=1)
